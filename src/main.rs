@@ -2,7 +2,7 @@ use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use serde_json::Value;
 use std::{fs, path::Path, process::Command, thread::sleep, time::Duration};
 
-const CLIENT_ID: &str = "1561027274977972367";
+const DEFAULT_CLIENT_ID: &str = "1561027274977972367";
 const APP_ID: &str = "com.github.xournalpp.xournalpp";
 
 fn start_time(dir: &Path, btime: i64) -> Option<i64> {
@@ -55,9 +55,9 @@ fn doc_name() -> Option<String> {
     None
 }
 
-fn connect() -> DiscordIpcClient {
+fn connect(id: &str) -> DiscordIpcClient {
     loop {
-        if let Ok(mut client) = DiscordIpcClient::new(CLIENT_ID) {
+        if let Ok(mut client) = DiscordIpcClient::new(id) {
             if client.connect().is_ok() {
                 return client;
             }
@@ -67,7 +67,8 @@ fn connect() -> DiscordIpcClient {
 }
 
 fn main() {
-    let mut client = connect();
+    let id = client_id();
+    let mut client = connect(&id);
     let mut active = false;
 
     loop {
@@ -96,8 +97,25 @@ fn main() {
         };
 
         if !ok {
-            client = connect();
+            client = connect(&id);
         }
         sleep(Duration::from_secs(15));
     }
+}
+
+fn client_id() -> String {
+    if let Ok(v) = std::env::var("XOURNAL_RPC_CLIENT_ID") {
+        if !v.trim().is_empty() {
+            return v.trim().to_string();
+        }
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let path = Path::new(&home).join(".config/xournal-rpc/client_id");
+        if let Ok(v) = fs::read_to_string(path) {
+            if !v.trim().is_empty() {
+                return v.trim().to_string();
+            }
+        }
+    }
+    DEFAULT_CLIENT_ID.to_string()
 }
