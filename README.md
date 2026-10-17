@@ -43,4 +43,14 @@ spawn-at-startup "/path/to/xournal-rpc"
 - The file name is visible to anyone who can see your profile.
 - Discord installed through Flatpak or Snap may need a symlink to the IPC socket, for example:
   `ln -sf $XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0 $XDG_RUNTIME_DIR/discord-ipc-0`
-- To use your own Discord app, change `CLIENT_ID` in `src/main.rs` and upload an art asset named `xournalpp`.
+
+## Using your own Discord app
+
+By default it uses the author's Discord application. To use your own, create one at https://discord.com/developers/applications, upload an art asset named `xournalpp`, and set the Application ID with either:
+
+```bash
+mkdir -p ~/.config/xournal-rpc
+echo "YOUR_APPLICATION_ID" > ~/.config/xournal-rpc/client_id
+```
+
+or the environment variable `XOURNAL_RPC_CLIENT_ID`.
