@@ -1,18 +1,37 @@
 # xournalpp-discord-rpc
 
-Discord Rich Presence for [Xournal++](https://xournalpp.github.io/) on Linux, written in Rust.
+<div align="center">
 
-Shows `Studying (file name)` and how long Xournal++ has been open.
+[![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Linux](https://img.shields.io/badge/Platform-Linux-4f46e5)](https://www.kernel.org/)
+[![niri](https://img.shields.io/badge/Compositor-niri-0ea5e9)](https://github.com/YaLTeR/niri)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+</div>
+
+Discord Rich Presence for Xournal++ on Linux.
+
+This project shows your current activity in Discord as `Studying` and, when available, the active document name and session duration. It is designed for Linux desktops, with native support for `niri` window detection.
+
+## Features
+
+- Shows `Studying` in Discord when Xournal++ is open
+- Displays the current document name when available
+- Tracks elapsed time from the moment Xournal++ started
+- Uses the Xournal++ window title exposed by `niri`
+- Lightweight and runs in the background without extra dependencies
 
 ## Requirements
 
-- Linux with the [niri](https://github.com/YaLTeR/niri) compositor (the document title is read with `niri msg`)
-- Discord (or Vesktop) running, with "Share detected activity" enabled
-- Rust and Cargo, only if you want to build it yourself
+- Linux
+- Xournal++ installed
+- Discord or Vesktop running with "Share detected activity" enabled
+- Rust and Cargo if you want to build it from source
+- `niri` is preferred for reading the active document title
 
-Without niri the presence still works, but it only shows `Studying` without the file name.
+Without `niri`, the RPC still works, but the document name may not be available and the status falls back to `Studying`.
 
-## Build
+## Installation
 
 ```bash
 git clone https://github.com/luqenov/xournalpp-discord-rpc.git
@@ -20,19 +39,25 @@ cd xournalpp-discord-rpc
 cargo build --release
 ```
 
-The binary will be at `target/release/xournal-rpc`.
+The binary will be available at:
 
-## Run
+```bash
+target/release/xournal-rpc
+```
+
+## Usage
+
+Run the binary:
 
 ```bash
 ./target/release/xournal-rpc
 ```
 
-Open Xournal++ and the status appears in about 15 seconds.
+Then open Xournal++. The Discord status updates after a short delay, usually within about 15 seconds.
 
-## Autostart with niri
+## niri autostart
 
-Add this to `~/.config/niri/config.kdl`:
+Add this to your `~/.config/niri/config.kdl`:
 
 ```kdl
 spawn-at-startup "/path/to/xournal-rpc"
@@ -40,17 +65,30 @@ spawn-at-startup "/path/to/xournal-rpc"
 
 ## Notes
 
-- The file name is visible to anyone who can see your profile.
-- Discord installed through Flatpak or Snap may need a symlink to the IPC socket, for example:
-  `ln -sf $XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0 $XDG_RUNTIME_DIR/discord-ipc-0`
+- The Xournal++ document name is visible to anyone who can see your Discord profile.
+- If Discord is installed through Flatpak or Snap, you may need to create a symlink to the IPC socket, for example:
 
-## Using your own Discord app
+```bash
+ln -sf "$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0" "$XDG_RUNTIME_DIR/discord-ipc-0"
+```
 
-By default it uses the author's Discord application. To use your own, create one at https://discord.com/developers/applications, upload an art asset named `xournalpp`, and set the Application ID with either:
+## Custom Discord application
+
+By default, this project uses the author's Discord application ID. If you want to use your own application, create one in the Discord developer portal, upload an asset named `xournalpp`, and then set a custom client ID.
+
+Create a config file:
 
 ```bash
 mkdir -p ~/.config/xournal-rpc
-echo "YOUR_APPLICATION_ID" > ~/.config/xournal-rpc/client_id
+printf '%s\n' "YOUR_APPLICATION_ID" > ~/.config/xournal-rpc/client_id
 ```
 
-or the environment variable `XOURNAL_RPC_CLIENT_ID`.
+You can also override it at runtime with:
+
+```bash
+export XOURNAL_RPC_CLIENT_ID="YOUR_APPLICATION_ID"
+```
+
+## License
+
+This project is licensed under the MIT License. See the repository files for the full license text.
