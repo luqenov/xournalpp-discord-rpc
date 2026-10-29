@@ -11,25 +11,25 @@
 
 Discord Rich Presence for Xournal++ on Linux.
 
-This project shows your current activity in Discord as `Studying` and, when available, the active document name and session duration. It is designed for Linux desktops, with native support for `niri` window detection.
+This project updates your Discord status to show when you are studying in Xournal++, including the active document name and elapsed session time when available.
 
 ## Features
 
-- Shows `Studying` in Discord when Xournal++ is open
-- Displays the current document name when available
-- Tracks elapsed time from the moment Xournal++ started
-- Uses the Xournal++ window title exposed by `niri`
-- Lightweight and runs in the background without extra dependencies
+- Shows `Studying` while Xournal++ is open
+- Displays the current document name when supported
+- Tracks how long the session has been active
+- Uses `niri` window metadata for document detection
+- Minimal runtime footprint and simple setup
 
 ## Requirements
 
 - Linux
 - Xournal++ installed
-- Discord or Vesktop running with "Share detected activity" enabled
-- Rust and Cargo if you want to build it from source
-- `niri` is preferred for reading the active document title
+- Discord or Vesktop running with “Share detected activity” enabled
+- Rust and Cargo if you want to build from source
+- `niri` recommended for reading the active document title
 
-Without `niri`, the RPC still works, but the document name may not be available and the status falls back to `Studying`.
+Without `niri`, the status still works, but the document name may not be available and the presence falls back to `Studying`.
 
 ## Installation
 
@@ -39,7 +39,7 @@ cd xournalpp-discord-rpc
 cargo build --release
 ```
 
-The binary will be available at:
+The binary will be created at:
 
 ```bash
 target/release/xournal-rpc
@@ -47,15 +47,13 @@ target/release/xournal-rpc
 
 ## Usage
 
-Run the binary:
-
 ```bash
 ./target/release/xournal-rpc
 ```
 
-Then open Xournal++. The Discord status updates after a short delay, usually within about 15 seconds.
+Open Xournal++ and the Discord status will update automatically after a short delay.
 
-## niri autostart
+## Autostart with niri
 
 Add this to your `~/.config/niri/config.kdl`:
 
@@ -65,16 +63,16 @@ spawn-at-startup "/path/to/xournal-rpc"
 
 ## Notes
 
-- The Xournal++ document name is visible to anyone who can see your Discord profile.
-- If Discord is installed through Flatpak or Snap, you may need to create a symlink to the IPC socket, for example:
+- The document name is visible to anyone who can see your Discord profile.
+- If Discord is installed via Flatpak or Snap, you may need a symlink to the IPC socket:
 
 ```bash
 ln -sf "$XDG_RUNTIME_DIR/app/com.discordapp.Discord/discord-ipc-0" "$XDG_RUNTIME_DIR/discord-ipc-0"
 ```
 
-## Custom Discord application
+## Custom Discord app
 
-By default, this project uses the author's Discord application ID. If you want to use your own application, create one in the Discord developer portal, upload an asset named `xournalpp`, and then set a custom client ID.
+By default this project uses the author’s Discord application ID. If you want to use your own app, create one in the Discord developer portal, upload an asset named `xournalpp`, and set a custom client ID.
 
 Create a config file:
 
@@ -83,12 +81,8 @@ mkdir -p ~/.config/xournal-rpc
 printf '%s\n' "YOUR_APPLICATION_ID" > ~/.config/xournal-rpc/client_id
 ```
 
-You can also override it at runtime with:
+You can also override it at runtime:
 
 ```bash
 export XOURNAL_RPC_CLIENT_ID="YOUR_APPLICATION_ID"
 ```
-
-## License
-
-This project is licensed under the MIT License. See the repository files for the full license text.
