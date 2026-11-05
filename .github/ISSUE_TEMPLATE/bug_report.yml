@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a problem with xournal-rpc
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include enough detail to reproduce it.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `xournal-rpc --verbose`
+        2. Open Xournal++
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Verbose output
+      description: Output of `xournal-rpc --verbose` or `xournal-rpc --dry-run --verbose`.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: xournal-rpc version
+      description: Output of `xournal-rpc --version`.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Distribution, compositor and version, Xournal++ version, Discord client.
+      placeholder: Arch Linux, niri 25.05, Xournal++ 1.2.6, Vesktop
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Relevant config file or environment variables, with secrets removed.
+      render: shell
+    validations:
+      required: false
