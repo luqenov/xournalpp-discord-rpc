@@ -1,0 +1,30 @@
+name: Mirror to Codeberg
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load Codeberg deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.CODEBERG_SSH_KEY }}
+
+      - name: Trust Codeberg host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t ed25519 codeberg.org >> ~/.ssh/known_hosts
+
+      - name: Mirror repository
+        run: |
+          git clone --bare "https://github.com/${GITHUB_REPOSITORY}.git" mirror.git
+          cd mirror.git
+          git push --mirror git@codeberg.org:luqenov/xournalpp-discord-rpc.git
