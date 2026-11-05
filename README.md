@@ -92,91 +92,9 @@ systemctl --user enable --now xournal-rpc
 
 If the binary is not at `/usr/bin/xournal-rpc`, update `ExecStart` first.
 
-## Usage
+## Usage and troubleshooting
 
-```bash
-xournal-rpc
-```
-
-Open Xournal++ and the presence updates automatically.
-
-### Options
-
-| Option | Description |
-| --- | --- |
-| `-h, --help` | Show help |
-| `-V, --version` | Show version |
-| `-v, --verbose` | Print diagnostic messages |
-| `--once` | Run one update cycle and exit |
-| `--dry-run` | Print detected status without connecting to Discord |
-| `--no-document` | Hide the document name |
-| `--document` | Show the document name |
-| `--client-id <ID>` | Use a custom Discord application |
-| `--interval <SECS>` | Polling interval in seconds (default 15, minimum 2) |
-
-### Configuration
-
-Settings are applied in this order, with later sources overriding earlier ones:
-
-1. `~/.config/xournal-rpc/client_id` (legacy)
-2. `~/.config/xournal-rpc/config`
-3. Environment variables
-4. Command-line flags
-
-`XDG_CONFIG_HOME` is respected.
-
-Example `~/.config/xournal-rpc/config`:
-
-```ini
-client_id=1561027274977972367
-interval=15
-show_document=true
-verbose=false
-```
-
-Environment variables: `XOURNAL_RPC_CLIENT_ID`, `XOURNAL_RPC_INTERVAL`, `XOURNAL_RPC_SHOW_DOCUMENT`, `XOURNAL_RPC_VERBOSE`.
-
-### Custom Discord application
-
-Create an application in the [Discord Developer Portal](https://discord.com/developers/applications), upload an asset named `xournalpp`, then set your client ID:
-
-```bash
-xournal-rpc --client-id YOUR_APPLICATION_ID
-```
-
-Or persist it in `~/.config/xournal-rpc/config`:
-
-```ini
-client_id=YOUR_APPLICATION_ID
-```
-
-## Troubleshooting
-
-### Presence does not appear
-
-- Enable **Share detected activity** in Discord settings.
-- Restart Discord after installing or updating.
-- Run `xournal-rpc --verbose` and check the output.
-- Make sure only one instance is running.
-- Flatpak and Snap clients are detected through their own IPC socket directories. If detection still fails, confirm Discord is running and the socket exists.
-
-### Document name is missing
-
-- Confirm your compositor tool is installed: `niri`, `hyprctl`, `swaymsg`/`i3-msg` or `xprop`.
-- Unsaved documents are intentionally omitted.
-- Use `--no-document` if you prefer to hide names entirely.
-
-### systemd service cannot detect the compositor
-
-The service needs the compositor environment. Start it from a session that exports `NIRI_SOCKET`, `HYPRLAND_INSTANCE_SIGNATURE`, `SWAYSOCK`, `I3SOCK` or `DISPLAY`, or add the relevant variables to the unit.
-
-### Invalid client ID
-
-Client IDs must be 17-20 digits. Validate one with:
-
-```bash
-xournal-rpc --dry-run --client-id YOUR_APPLICATION_ID
-```
+Usage, configuration and troubleshooting guides are available in the [Wiki](https://github.com/luqenov/xournalpp-discord-rpc/wiki).
 
 ## Privacy
 
@@ -185,7 +103,3 @@ The presence is sent only to the local Discord client over its IPC socket. Docum
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-[MIT](LICENSE)
