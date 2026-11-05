@@ -1,6 +1,6 @@
 # Maintainer: luqenov <https://github.com/luqenov>
 pkgname=xournal-rpc
-pkgver=0.1.1
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Discord Rich Presence for Xournal++ on Linux"
 arch=('x86_64' 'aarch64')
@@ -11,7 +11,7 @@ makedepends=('cargo' 'rust')
 install="$pkgname.install"
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
         "xournal-rpc.service")
-sha256sums=('b9c71165eeca0c038064329247ea08b3be49bbc4a2a8ae8508aff602a0254b9a'
+sha256sums=('adf72e287fc2def742c25e864164dc4aecd450912f88cb2677ccbcad88286694'
             '34de1714e721ac58ff76dedc27e1abb2317581e2327ff5244503a0b8b0f6361a')
 
 build() {
