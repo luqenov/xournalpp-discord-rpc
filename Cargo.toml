@@ -1,13 +1,25 @@
 [package]
 name = "xournal-rpc"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+rust-version = "1.71"
+description = "Discord Rich Presence for Xournal++ on Linux"
+license = "MIT"
+repository = "https://github.com/luqenov/xournalpp-discord-rpc"
+readme = "README.md"
+keywords = ["discord", "rich-presence", "xournalpp", "niri"]
+categories = ["command-line-utilities"]
 
 [dependencies]
-discord-rich-presence = "0.2"
+ctrlc = "3"
+discord-rich-presence = "1.1"
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [profile.release]
 opt-level = "s"
 strip = true
 lto = true
+codegen-units = 1
+panic = "abort"

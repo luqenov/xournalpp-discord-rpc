@@ -1,121 +1,170 @@
-use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
-use serde_json::Value;
-use std::{fs, path::Path, process::Command, thread::sleep, time::Duration};
+mod config;
+mod discord;
+mod process;
+mod window;
 
-const DEFAULT_CLIENT_ID: &str = "1561027274977972367";
-const APP_ID: &str = "com.github.xournalpp.xournalpp";
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 
-fn start_time(dir: &Path, btime: i64) -> Option<i64> {
-    let comm = fs::read_to_string(dir.join("comm")).ok()?;
-    if !comm.trim().starts_with("xournalpp") {
-        return None;
-    }
-    let stat = fs::read_to_string(dir.join("stat")).ok()?;
-    let rest = stat.rsplit_once(')')?.1;
-    let ticks: i64 = rest.split_whitespace().nth(19)?.parse().ok()?;
-    Some(btime + ticks / 100)
-}
+use config::Config;
+use discord::Presence;
+use window::WindowDetector;
 
-fn find_start() -> Option<i64> {
-    let btime = fs::read_to_string("/proc/stat")
-        .ok()?
-        .lines()
-        .find_map(|l| l.strip_prefix("btime ")?.trim().parse::<i64>().ok())?;
-    for entry in fs::read_dir("/proc").ok()?.flatten() {
-        let name = entry.file_name();
-        if !name.to_string_lossy().chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        if let Some(ts) = start_time(&entry.path(), btime) {
-            return Some(ts);
-        }
-    }
-    None
-}
-
-fn doc_name() -> Option<String> {
-    let out = Command::new("niri")
-        .args(["msg", "--json", "windows"])
-        .output()
-        .ok()?;
-    let windows: Value = serde_json::from_slice(&out.stdout).ok()?;
-    for w in windows.as_array()? {
-        if w["app_id"].as_str() == Some(APP_ID) {
-            let title = w["title"].as_str().unwrap_or("");
-            let name = title
-                .strip_suffix(" - Xournal++")
-                .unwrap_or(title)
-                .trim_start_matches('*')
-                .trim();
-            if !name.is_empty() && name != "Xournal++" {
-                return Some(name.to_string());
-            }
-        }
-    }
-    None
-}
-
-fn connect(id: &str) -> DiscordIpcClient {
-    loop {
-        if let Ok(mut client) = DiscordIpcClient::new(id) {
-            if client.connect().is_ok() {
-                return client;
-            }
-        }
-        sleep(Duration::from_secs(10));
-    }
+#[derive(Debug, Clone)]
+pub struct Status {
+    pub running: bool,
+    pub document: Option<String>,
+    pub started: Option<i64>,
+    pub pid: Option<u32>,
 }
 
 fn main() {
-    let id = client_id();
-    let mut client = connect(&id);
-    let mut active = false;
-
-    loop {
-        let ok = match find_start() {
-            Some(ts) => {
-                let details = match doc_name() {
-                    Some(d) => format!("Studying ({d})"),
-                    None => "Studying".to_string(),
-                };
-                let act = activity::Activity::new()
-                    .details(&details)
-                    .timestamps(activity::Timestamps::new().start(ts))
-                    .assets(
-                        activity::Assets::new()
-                            .large_image("xournalpp")
-                            .large_text("Xournal++"),
-                    );
-                active = true;
-                client.set_activity(act).is_ok()
-            }
-            None if active => {
-                active = false;
-                client.clear_activity().is_ok()
-            }
-            None => true,
-        };
-
-        if !ok {
-            client = connect(&id);
+    let config = match Config::from_args(std::env::args().skip(1)) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("xournal-rpc: {error}");
+            std::process::exit(2);
         }
-        sleep(Duration::from_secs(15));
+    };
+
+    if config.help {
+        print!("{}", config::help());
+        return;
+    }
+    if config.version {
+        println!("xournal-rpc {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if let Err(error) = config.validate() {
+        eprintln!("xournal-rpc: {error}");
+        std::process::exit(1);
+    }
+
+    let mut detector = WindowDetector::new(config.verbose);
+
+    if config.dry_run {
+        let status = detect(&config, &mut detector);
+        print_status(&status, &config);
+        return;
+    }
+
+    let running = Arc::new(AtomicBool::new(true));
+    let signal = running.clone();
+    if let Err(error) = ctrlc::set_handler(move || signal.store(false, Ordering::SeqCst)) {
+        eprintln!("xournal-rpc: failed to install signal handler: {error}");
+    }
+
+    let mut presence = Presence::new(&config);
+    let mut active = false;
+    let mut backoff = Backoff::new();
+
+    while running.load(Ordering::SeqCst) {
+        let status = detect(&config, &mut detector);
+
+        if status.running {
+            if presence.set(&status) {
+                active = true;
+                backoff.reset();
+                if config.once {
+                    break;
+                }
+                sleep_interruptible(Duration::from_secs(config.interval), &running);
+            } else {
+                active = false;
+                if config.once {
+                    std::process::exit(1);
+                }
+                let delay = backoff.next();
+                if config.verbose {
+                    eprintln!("xournal-rpc: retrying in {}s", delay.as_secs());
+                }
+                sleep_interruptible(delay, &running);
+            }
+        } else {
+            if active {
+                presence.clear();
+                active = false;
+            }
+            if config.once {
+                break;
+            }
+            sleep_interruptible(Duration::from_secs(config.interval), &running);
+        }
+    }
+
+    if !config.once {
+        presence.clear();
+    }
+    presence.close();
+}
+
+fn detect(config: &Config, detector: &mut WindowDetector) -> Status {
+    let window = detector.focused_xournal();
+    let pid = window.as_ref().and_then(|window| window.pid);
+    let started = process::find_start(pid, config.verbose);
+    let running = started.is_some() || window.is_some();
+    let document = if config.show_document {
+        window.and_then(|window| window::clean_title(&window.title))
+    } else {
+        None
+    };
+
+    Status {
+        running,
+        document,
+        started,
+        pid,
     }
 }
 
-fn client_id() -> String {
-    if let Ok(v) = std::env::var("XOURNAL_RPC_CLIENT_ID") {
-        if !v.trim().is_empty() {
-            return v.trim().to_string();
+fn print_status(status: &Status, config: &Config) {
+    println!("running: {}", if status.running { "yes" } else { "no" });
+    if let Some(document) = &status.document {
+        println!("document: {document}");
+    }
+    if let Some(pid) = status.pid {
+        println!("pid: {pid}");
+    }
+    if let Some(started) = status.started {
+        println!("started: {started}");
+    }
+    if !config.show_document {
+        println!("document sharing: disabled");
+    }
+}
+
+fn sleep_interruptible(duration: Duration, running: &AtomicBool) {
+    let step = Duration::from_millis(200);
+    let mut remaining = duration;
+    while remaining > Duration::ZERO && running.load(Ordering::SeqCst) {
+        let chunk = remaining.min(step);
+        sleep(chunk);
+        remaining -= chunk;
+    }
+}
+
+struct Backoff {
+    current: Duration,
+    max: Duration,
+}
+
+impl Backoff {
+    fn new() -> Self {
+        Self {
+            current: Duration::from_secs(2),
+            max: Duration::from_secs(60),
         }
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        let path = Path::new(&home).join(".config/xournal-rpc/client_id");
-        if let Ok(v) = fs::read_to_string(path) {
-            if !v.trim().is_empty() {
-                return v.trim().to_string();
-            }
-        }
+
+    fn next(&mut self) -> Duration {
+        let delay = self.current;
+        self.current = (self.current * 2).min(self.max);
+        delay
     }
-    DEFAULT_CLIENT_ID.to_string()
+
+    fn reset(&mut self) {
+        self.current = Duration::from_secs(2);
+    }
 }
