@@ -9,8 +9,10 @@ license=('MIT')
 depends=('glibc')
 makedepends=('cargo' 'rust')
 install="$pkgname.install"
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('b9c71165eeca0c038064329247ea08b3be49bbc4a2a8ae8508aff602a0254b9a')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        "xournal-rpc.service")
+sha256sums=('b9c71165eeca0c038064329247ea08b3be49bbc4a2a8ae8508aff602a0254b9a'
+            '34de1714e721ac58ff76dedc27e1abb2317581e2327ff5244503a0b8b0f6361a')
 
 build() {
   cd "xournalpp-discord-rpc-$pkgver"
@@ -21,6 +23,6 @@ package() {
   cd "xournalpp-discord-rpc-$pkgver"
   install -Dm755 target/release/xournal-rpc "$pkgdir/usr/bin/xournal-rpc"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  install -Dm644 packaging/xournal-rpc.service \
+  install -Dm644 "$srcdir/xournal-rpc.service" \
     "$pkgdir/usr/lib/systemd/user/xournal-rpc.service"
 }
