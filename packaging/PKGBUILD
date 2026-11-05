@@ -1,0 +1,26 @@
+# Maintainer: luqenov <https://github.com/luqenov>
+pkgname=xournal-rpc
+pkgver=0.1.1
+pkgrel=1
+pkgdesc="Discord Rich Presence for Xournal++ on Linux"
+arch=('x86_64' 'aarch64')
+url="https://github.com/luqenov/xournalpp-discord-rpc"
+license=('MIT')
+depends=('glibc')
+makedepends=('cargo' 'rust')
+install="$pkgname.install"
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('b9c71165eeca0c038064329247ea08b3be49bbc4a2a8ae8508aff602a0254b9a')
+
+build() {
+  cd "xournalpp-discord-rpc-$pkgver"
+  cargo build --release --locked
+}
+
+package() {
+  cd "xournalpp-discord-rpc-$pkgver"
+  install -Dm755 target/release/xournal-rpc "$pkgdir/usr/bin/xournal-rpc"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 packaging/xournal-rpc.service \
+    "$pkgdir/usr/lib/systemd/user/xournal-rpc.service"
+}
