@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![CI](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml)
+[![CI](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/luqenov/xournalpp-discord-rpc)](https://github.com/luqenov/xournalpp-discord-rpc/releases)
 [![License](https://img.shields.io/github/license/luqenov/xournalpp-discord-rpc)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.71%2B-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -54,11 +54,13 @@ Use the `aarch64` archive on ARM64.
 cargo install --git https://github.com/luqenov/xournalpp-discord-rpc --locked
 ```
 
-### Arch Linux (AUR)
+### Arch Linux
+
+A `PKGBUILD` is provided in [`packaging/`](packaging/):
 
 ```bash
-git clone https://aur.archlinux.org/xournal-rpc.git
-cd xournal-rpc
+git clone https://github.com/luqenov/xournalpp-discord-rpc.git
+cd xournalpp-discord-rpc/packaging
 makepkg -si
 systemctl --user enable --now xournal-rpc
 ```
