@@ -1,0 +1,7 @@
+post_install() {
+  echo "Enable the user service with: systemctl --user enable --now xournal-rpc"
+}
+
+post_upgrade() {
+  post_install
+}
