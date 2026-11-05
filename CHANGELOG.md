@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
 ### Added
 
 - CLI flags: `--help`, `--version`, `--verbose`, `--once`, `--dry-run`, `--no-document`, `--document`, `--client-id` and `--interval`
@@ -22,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Release builds now use static musl binaries for x86_64 and aarch64
 - Release archives include `README.md`, `LICENSE` and `SHA256SUMS.txt`
 - Improved process start-time detection using `sysconf(_SC_CLK_TCK)`
+- README rewritten; usage and troubleshooting moved to the Wiki
+- Dependabot updates target `dev`
 
 ## [0.1.1] - 2026-10-17
 
