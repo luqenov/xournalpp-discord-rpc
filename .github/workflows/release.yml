@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check tag matches Cargo.toml
+        run: |
+          version="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')"
+          test "v$version" = "${GITHUB_REF_NAME}"
+      - uses: taiki-e/install-action@cross
+      - run: cross build --release --locked --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          arch="${{ matrix.target }}"
+          arch="${arch%%-*}"
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/xournal-rpc" dist/
+          cp README.md LICENSE dist/
+          tar -czf "xournal-rpc-${GITHUB_REF_NAME}-linux-${arch}.tar.gz" -C dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: xournal-rpc-*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+      - run: sha256sum xournal-rpc-*.tar.gz > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            xournal-rpc-*.tar.gz
+            SHA256SUMS.txt
