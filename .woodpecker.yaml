@@ -1,0 +1,13 @@
+when:
+  - event: [push, pull_request]
+    branch: [main, dev]
+  - event: tag
+
+steps:
+  - name: check
+    image: rust:bookworm
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends python3
+      - rustup component add rustfmt clippy
+      - sh scripts/check.sh
