@@ -2,9 +2,7 @@
 
 <div align="center">
 
-[![CI](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/luqenov/xournalpp-discord-rpc/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/luqenov/xournalpp-discord-rpc)](https://github.com/luqenov/xournalpp-discord-rpc/releases)
-[![License](https://img.shields.io/github/license/luqenov/xournalpp-discord-rpc)](LICENSE)
+[Releases](https://codeberg.org/luqenov/xournalpp-discord-rpc/releases) · [MIT License](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.71%2B-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/platform-linux-4f46e5?logo=linux&logoColor=white)](#requirements)
 
@@ -39,9 +37,10 @@ Rust 1.71+ is only required when building from source.
 
 ### Prebuilt binary
 
-Download the archive for your architecture from [Releases](https://github.com/luqenov/xournalpp-discord-rpc/releases), verify it against `SHA256SUMS.txt`, and install:
+Download the archive for your architecture from [Releases](https://codeberg.org/luqenov/xournalpp-discord-rpc/releases), download `SHA256SUMS.txt` into the same directory, verify the checksum, and install:
 
 ```bash
+sha256sum --ignore-missing -c SHA256SUMS.txt
 tar -xzf xournal-rpc-v*-linux-x86_64.tar.gz
 sudo install -Dm755 xournal-rpc /usr/local/bin/xournal-rpc
 ```
@@ -51,7 +50,7 @@ Use the `aarch64` archive on ARM64.
 ### Cargo
 
 ```bash
-cargo install --git https://github.com/luqenov/xournalpp-discord-rpc --locked
+cargo install --git https://codeberg.org/luqenov/xournalpp-discord-rpc --locked
 ```
 
 ### Arch Linux
@@ -59,7 +58,7 @@ cargo install --git https://github.com/luqenov/xournalpp-discord-rpc --locked
 A `PKGBUILD` is provided in [`packaging/`](packaging/):
 
 ```bash
-git clone https://github.com/luqenov/xournalpp-discord-rpc.git
+git clone https://codeberg.org/luqenov/xournalpp-discord-rpc.git
 cd xournalpp-discord-rpc/packaging
 makepkg -si
 systemctl --user enable --now xournal-rpc
@@ -68,14 +67,14 @@ systemctl --user enable --now xournal-rpc
 ### Nix
 
 ```bash
-nix run github:luqenov/xournalpp-discord-rpc
+nix run git+https://codeberg.org/luqenov/xournalpp-discord-rpc
 ```
 
 Or use the overlay:
 
 ```nix
 {
-  inputs.xournalpp-discord-rpc.url = "github:luqenov/xournalpp-discord-rpc";
+  inputs.xournalpp-discord-rpc.url = "git+https://codeberg.org/luqenov/xournalpp-discord-rpc";
 }
 ```
 
@@ -94,7 +93,7 @@ If the binary is not at `/usr/bin/xournal-rpc`, update `ExecStart` first.
 
 ## Usage and troubleshooting
 
-Usage, configuration and troubleshooting guides are available in the [Wiki](https://github.com/luqenov/xournalpp-discord-rpc/wiki).
+See the [usage and troubleshooting guide](docs/usage.md).
 
 ## Privacy
 

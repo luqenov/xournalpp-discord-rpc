@@ -7,12 +7,9 @@ Thanks for taking the time to improve the project.
 Requirements: Linux and Rust 1.71+.
 
 ```bash
-git clone https://github.com/luqenov/xournalpp-discord-rpc.git
+git clone https://codeberg.org/luqenov/xournalpp-discord-rpc.git
 cd xournalpp-discord-rpc
-cargo fmt
-cargo clippy --all-targets -- -D warnings
-cargo test
-cargo build --release
+sh scripts/check.sh
 ```
 
 ## Branches and pull requests
