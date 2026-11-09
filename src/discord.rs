@@ -34,8 +34,8 @@ impl Presence {
                     .large_text("Xournal++"),
             )
             .buttons(vec![activity::Button::new(
-                "GitHub",
-                "https://github.com/luqenov/xournalpp-discord-rpc",
+                "Codeberg",
+                "https://codeberg.org/luqenov/xournalpp-discord-rpc",
             )]);
 
         if let Some(document) = &status.document {
