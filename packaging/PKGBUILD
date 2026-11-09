@@ -1,26 +1,32 @@
-# Maintainer: luqenov <https://github.com/luqenov>
+# Maintainer: luqenov <https://codeberg.org/luqenov>
 pkgname=xournal-rpc
 pkgver=0.2.0
 pkgrel=1
 pkgdesc="Discord Rich Presence for Xournal++ on Linux"
 arch=('x86_64' 'aarch64')
-url="https://github.com/luqenov/xournalpp-discord-rpc"
+url="https://codeberg.org/luqenov/xournalpp-discord-rpc"
 license=('MIT')
 depends=('glibc')
-makedepends=('cargo' 'rust')
+makedepends=('cargo' 'rust' 'git')
 install="$pkgname.install"
-source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+source=("git+$url.git#tag=v$pkgver"
         "xournal-rpc.service")
-sha256sums=('adf72e287fc2def742c25e864164dc4aecd450912f88cb2677ccbcad88286694'
-            '34de1714e721ac58ff76dedc27e1abb2317581e2327ff5244503a0b8b0f6361a')
+# Git sources are selected by release tag rather than a forge-specific source archive.
+sha256sums=('SKIP'
+            '943b6dd87c2afe44cb3f34a5b9f56de583d30137ff300ca672078b06bfa5fba4')
+
+prepare() {
+  cd "xournalpp-discord-rpc"
+  cargo fetch --locked
+}
 
 build() {
-  cd "xournalpp-discord-rpc-$pkgver"
-  cargo build --release --locked
+  cd "xournalpp-discord-rpc"
+  cargo build --release --frozen
 }
 
 package() {
-  cd "xournalpp-discord-rpc-$pkgver"
+  cd "xournalpp-discord-rpc"
   install -Dm755 target/release/xournal-rpc "$pkgdir/usr/bin/xournal-rpc"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 "$srcdir/xournal-rpc.service" \
