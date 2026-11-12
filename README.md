@@ -8,15 +8,18 @@
 
 </div>
 
-Discord Rich Presence for Xournal++ on Linux. Shows **Studying** in your Discord profile while Xournal++ is open, with the current document name and session time when available.
+Discord Rich Presence for Xournal++ on Linux. Shows a customizable message (default: **Studying**) in your Discord profile while Xournal++ is open, with the current document name and session time when available.
 
 ## Features
 
-- Shows `Studying` with the active document name
-- Session timer based on when Xournal++ started
+- Custom activity message with the active document name
+- Optional session timer based on when Xournal++ started
 - Supports niri, Hyprland, Sway/i3 and X11
 - Prefers the focused Xournal++ window when several are open
-- Optional document name sharing
+- Optional document name sharing and Codeberg button
+- Optional activity hiding while Xournal++ is in the background
+- Automatic configuration reload and a preview with `--dry-run`
+- Commented TOML configuration generated with `--init-config`
 - CLI, config file and environment variable configuration
 - Reconnects automatically when Discord restarts
 

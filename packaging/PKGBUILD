@@ -1,6 +1,6 @@
 # Maintainer: luqenov <https://codeberg.org/luqenov>
 pkgname=xournal-rpc
-pkgver=0.2.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Discord Rich Presence for Xournal++ on Linux"
 arch=('x86_64' 'aarch64')

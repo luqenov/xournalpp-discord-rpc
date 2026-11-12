@@ -1,6 +1,6 @@
 [package]
 name = "xournal-rpc"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.71"
 description = "Discord Rich Presence for Xournal++ on Linux"
@@ -11,7 +11,7 @@ keywords = ["discord", "rich-presence", "xournalpp", "niri"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-ctrlc = "3"
+ctrlc = { version = "3", features = ["termination"] }
 discord-rich-presence = "1.1"
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }

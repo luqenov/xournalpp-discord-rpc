@@ -63,6 +63,10 @@ impl WindowDetector {
         }
     }
 
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.verbose = verbose;
+    }
+
     pub fn focused_xournal(&mut self) -> Option<WindowInfo> {
         if let Some(backend) = self.backend {
             match backend.windows() {
@@ -380,6 +384,26 @@ fn parse_pid(output: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prefers_focused_window_and_keeps_background_state() {
+        let background = WindowInfo {
+            title: "background.pdf".into(),
+            pid: Some(1),
+            focused: false,
+        };
+        let foreground = WindowInfo {
+            title: "foreground.pdf".into(),
+            pid: Some(2),
+            focused: true,
+        };
+        assert_eq!(
+            pick(vec![background.clone(), foreground.clone()]),
+            Some(foreground)
+        );
+        assert_eq!(pick(vec![background.clone()]), Some(background));
+        assert_eq!(pick(Vec::new()), None);
+    }
 
     #[test]
     fn cleans_titles() {

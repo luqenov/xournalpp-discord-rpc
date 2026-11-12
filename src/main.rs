@@ -15,13 +15,15 @@ use window::WindowDetector;
 #[derive(Debug, Clone)]
 pub struct Status {
     pub running: bool,
+    pub focused: bool,
     pub document: Option<String>,
     pub started: Option<i64>,
     pub pid: Option<u32>,
 }
 
 fn main() {
-    let config = match Config::from_args(std::env::args().skip(1)) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut config = match Config::from_args(args.clone()) {
         Ok(config) => config,
         Err(error) => {
             eprintln!("xournal-rpc: {error}");
@@ -35,6 +37,20 @@ fn main() {
     }
     if config.version {
         println!("xournal-rpc {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if config.init_config {
+        let result = config::config_file_path()
+            .ok_or_else(|| "cannot find config directory: set XDG_CONFIG_HOME or HOME".to_string())
+            .and_then(|path| {
+                config::init_config(&path)?;
+                println!("Created {}", path.display());
+                Ok(())
+            });
+        if let Err(error) = result {
+            eprintln!("xournal-rpc: {error}");
+            std::process::exit(1);
+        }
         return;
     }
     if let Err(error) = config.validate() {
@@ -60,10 +76,16 @@ fn main() {
     let mut active = false;
     let mut backoff = Backoff::new();
 
+    let mut last_config_error = None;
     while running.load(Ordering::SeqCst) {
+        if reload_config(&mut config, &args, &mut last_config_error) {
+            presence.configure(&config);
+            detector.set_verbose(config.verbose);
+            backoff.reset();
+        }
         let status = detect(&config, &mut detector);
 
-        if status.running {
+        if should_publish(&status, &config) {
             if presence.set(&status) {
                 active = true;
                 backoff.reset();
@@ -102,6 +124,7 @@ fn main() {
 
 fn detect(config: &Config, detector: &mut WindowDetector) -> Status {
     let window = detector.focused_xournal();
+    let focused = window.as_ref().is_some_and(|window| window.focused);
     let pid = window.as_ref().and_then(|window| window.pid);
     let started = process::find_start(pid, config.verbose);
     let running = started.is_some() || window.is_some();
@@ -113,26 +136,88 @@ fn detect(config: &Config, detector: &mut WindowDetector) -> Status {
 
     Status {
         running,
+        focused,
         document,
         started,
         pid,
     }
 }
 
+fn should_publish(status: &Status, config: &Config) -> bool {
+    status.running && (!config.only_when_focused || status.focused)
+}
+
+fn reload_config(config: &mut Config, args: &[String], last_error: &mut Option<String>) -> bool {
+    let next = Config::from_args(args.iter().cloned()).and_then(|next| {
+        next.validate()?;
+        Ok(next)
+    });
+    match next {
+        Ok(next) => {
+            *last_error = None;
+            if *config == next {
+                return false;
+            }
+            *config = next;
+            if config.verbose {
+                eprintln!("xournal-rpc: configuration reloaded");
+            }
+            true
+        }
+        Err(error) => {
+            if last_error.as_ref() != Some(&error) {
+                eprintln!("xournal-rpc: configuration reload failed; keeping last valid settings: {error}");
+                *last_error = Some(error);
+            }
+            false
+        }
+    }
+}
+
 fn print_status(status: &Status, config: &Config) {
     println!("running: {}", if status.running { "yes" } else { "no" });
-    if let Some(document) = &status.document {
-        println!("document: {document}");
-    }
+    println!("focused: {}", if status.focused { "yes" } else { "no" });
+    println!(
+        "activity visible: {}",
+        if should_publish(status, config) {
+            "yes"
+        } else {
+            "no"
+        }
+    );
+    println!(
+        "document sharing: {}",
+        if config.show_document {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
+    println!(
+        "timer: {}",
+        if config.show_timer {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
+    println!(
+        "codeberg button: {}",
+        if config.show_codeberg {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
     if let Some(pid) = status.pid {
         println!("pid: {pid}");
     }
-    if let Some(started) = status.started {
-        println!("started: {started}");
-    }
-    if !config.show_document {
-        println!("document sharing: disabled");
-    }
+    // Use the same builder as the live presence so the preview matches its payload.
+    println!(
+        "activity: {}",
+        serde_json::to_string_pretty(&discord::build_activity(config, status))
+            .expect("activity is serializable")
+    );
 }
 
 fn sleep_interruptible(duration: Duration, running: &AtomicBool) {
@@ -166,5 +251,31 @@ impl Backoff {
 
     fn reset(&mut self) {
         self.current = Duration::from_secs(2);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn background_hiding_is_opt_in_and_requires_confirmed_focus() {
+        let mut status = Status {
+            running: true,
+            focused: false,
+            document: None,
+            started: Some(123),
+            pid: Some(42),
+        };
+        let mut config = Config::default();
+        assert!(should_publish(&status, &config));
+        config.only_when_focused = true;
+        assert!(!should_publish(&status, &config));
+        status.focused = true;
+        assert!(should_publish(&status, &config));
+        status.running = false;
+        assert!(!should_publish(&status, &config));
+        config.only_when_focused = false;
+        assert!(!should_publish(&status, &config));
     }
 }
