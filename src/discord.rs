@@ -7,6 +7,7 @@ pub struct Presence {
     client: Option<DiscordIpcClient>,
     client_id: String,
     verbose: bool,
+    show_codeberg: bool,
 }
 
 impl Presence {
@@ -15,6 +16,7 @@ impl Presence {
             client: None,
             client_id: config.client_id.clone(),
             verbose: config.verbose,
+            show_codeberg: config.show_codeberg,
         }
     }
 
@@ -26,17 +28,18 @@ impl Presence {
             }
         }
 
-        let mut activity = activity::Activity::new()
-            .details("Studying")
-            .assets(
-                activity::Assets::new()
-                    .large_image("xournalpp")
-                    .large_text("Xournal++"),
-            )
-            .buttons(vec![activity::Button::new(
+        let mut activity = activity::Activity::new().details("Studying").assets(
+            activity::Assets::new()
+                .large_image("xournalpp")
+                .large_text("Xournal++"),
+        );
+
+        if self.show_codeberg {
+            activity = activity.buttons(vec![activity::Button::new(
                 "Codeberg",
                 "https://codeberg.org/luqenov/xournalpp-discord-rpc",
             )]);
+        }
 
         if let Some(document) = &status.document {
             activity = activity.state(document);

@@ -11,6 +11,7 @@ pub struct Config {
     pub client_id: String,
     pub interval: u64,
     pub show_document: bool,
+    pub show_codeberg: bool,
     pub verbose: bool,
     pub once: bool,
     pub dry_run: bool,
@@ -24,6 +25,7 @@ impl Default for Config {
             client_id: DEFAULT_CLIENT_ID.to_string(),
             interval: DEFAULT_INTERVAL,
             show_document: true,
+            show_codeberg: true,
             verbose: false,
             once: false,
             dry_run: false,
@@ -49,6 +51,8 @@ impl Config {
                 "--dry-run" => config.dry_run = true,
                 "--no-document" => config.show_document = false,
                 "--document" => config.show_document = true,
+                "--no-codeberg" => config.show_codeberg = false,
+                "--codeberg" => config.show_codeberg = true,
                 "--client-id" => {
                     config.client_id = args.next().ok_or("--client-id requires a value")?;
                 }
@@ -101,6 +105,11 @@ impl Config {
                 config.show_document = show;
             }
         }
+        if let Ok(value) = env::var("XOURNAL_RPC_SHOW_CODEBERG") {
+            if let Some(show) = parse_bool(&value) {
+                config.show_codeberg = show;
+            }
+        }
         if let Ok(value) = env::var("XOURNAL_RPC_VERBOSE") {
             if let Some(verbose) = parse_bool(&value) {
                 config.verbose = verbose;
@@ -121,6 +130,11 @@ impl Config {
             "show_document" => {
                 if let Some(show) = parse_bool(value) {
                     self.show_document = show;
+                }
+            }
+            "show_codeberg" => {
+                if let Some(show) = parse_bool(value) {
+                    self.show_codeberg = show;
                 }
             }
             "verbose" => {
@@ -177,7 +191,7 @@ fn config_dir() -> Option<PathBuf> {
 }
 
 fn config_file_path() -> Option<PathBuf> {
-    config_dir().map(|dir| dir.join("config"))
+    config_dir().map(|dir| dir.join("config.toml"))
 }
 
 fn client_id_file_path() -> Option<PathBuf> {
@@ -186,16 +200,19 @@ fn client_id_file_path() -> Option<PathBuf> {
 
 fn read_key_values(path: &Path) -> Vec<(String, String)> {
     fs::read_to_string(path)
-        .map(|content| {
-            content
-                .lines()
-                .filter_map(|line| {
-                    let line = line.trim();
-                    if line.is_empty() || line.starts_with('#') {
-                        return None;
-                    }
-                    let (key, value) = line.split_once('=')?;
-                    Some((key.trim().to_string(), value.trim().to_string()))
+        .ok()
+        .and_then(|content| content.parse::<toml::Table>().ok())
+        .map(|table| {
+            table
+                .into_iter()
+                .filter_map(|(key, value)| {
+                    let value = match value {
+                        toml::Value::String(value) => value,
+                        toml::Value::Boolean(value) => value.to_string(),
+                        toml::Value::Integer(value) => value.to_string(),
+                        _ => return None,
+                    };
+                    Some((key, value))
                 })
                 .collect()
         })
@@ -216,6 +233,8 @@ pub fn help() -> &'static str {
         "      --once              Run one update cycle and exit\n",
         "      --dry-run           Print detected status without connecting to Discord\n",
         "      --no-document       Do not share the document name\n",
+        "      --no-codeberg       Hide the Codeberg button\n",
+        "      --codeberg          Show the Codeberg button [default]\n",
         "      --client-id <ID>    Discord application client ID\n",
         "      --interval <SECS>   Polling interval in seconds [default: 15]\n",
     )
@@ -256,6 +275,51 @@ mod tests {
         assert!(!config.show_document);
         assert_eq!(config.interval, 30);
         assert_eq!(config.client_id, "1561027274977972367");
+    }
+
+    #[test]
+    fn configures_codeberg_button() {
+        let mut config = Config::default();
+        assert!(config.show_codeberg);
+        config.apply("show_codeberg", "false");
+        assert!(!config.show_codeberg);
+        config.apply("show_codeberg", "invalid");
+        assert!(!config.show_codeberg);
+        config.apply("show_codeberg", "true");
+        assert!(config.show_codeberg);
+        let config = Config::from_args(["--no-codeberg".to_string()]).unwrap();
+        assert!(!config.show_codeberg);
+        let config =
+            Config::from_args(["--no-codeberg".to_string(), "--codeberg".to_string()]).unwrap();
+        assert!(config.show_codeberg);
+    }
+
+    #[test]
+    fn reads_toml_configuration() {
+        let path = env::temp_dir().join(format!("xournal-rpc-config-{}.toml", std::process::id()));
+        fs::write(
+            &path,
+            r#"
+# TOML configuration
+interval = 30
+show_codeberg = false
+client_id = "1561027274977972367"
+"#,
+        )
+        .unwrap();
+        let values = read_key_values(&path);
+        fs::remove_file(&path).unwrap();
+        let mut config = Config::default();
+        for (key, value) in values {
+            config.apply(&key, &value);
+        }
+        assert_eq!(config.interval, 30);
+        assert!(!config.show_codeberg);
+        assert_eq!(config.client_id, "1561027274977972367");
+        assert_eq!(
+            config_file_path().unwrap().file_name().unwrap(),
+            "config.toml"
+        );
     }
 
     #[test]
