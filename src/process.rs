@@ -28,7 +28,7 @@ pub fn find_start(preferred_pid: Option<u32>, verbose: bool) -> Option<i64> {
 
     if verbose {
         if let Some((_, pid)) = newest {
-            eprintln!("xournal-rpc: using Xournal++ pid {pid}");
+            crate::terminal::diagnostic(format_args!("xournal-rpc: using Xournal++ pid {pid}"));
         }
     }
 

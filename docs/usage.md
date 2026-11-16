@@ -18,6 +18,18 @@ Activity updates are confirmed only after the client acknowledges `SET_ACTIVITY`
 Each IPC response has a five-second timeout; failed connections are retried with
 backoff. An acknowledgement confirms local client acceptance, not profile visibility.
 
+In an interactive terminal, the app shows a compact animated status line instead
+of repeating diagnostics at every poll. It reports active presence, waiting for
+focus or Xournal++, and connection retries. Animation is disabled for redirected
+output, `TERM=dumb` and CI. To capture full diagnostics, run:
+
+```sh
+xournal-rpc --verbose 2> xournal-rpc.log
+```
+
+`--dry-run` always keeps its plain preview output.
+
+
 ## Configuration
 
 Run `xournal-rpc --init-config` to create a commented configuration. It never

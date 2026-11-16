@@ -20,10 +20,10 @@ impl IpcClient {
         let mut errors = Vec::new();
         for path in paths.iter().filter(|path| path.exists()) {
             if verbose {
-                eprintln!(
+                crate::terminal::diagnostic(format_args!(
                     "xournal-rpc: trying IPC socket {} (5s response timeout)",
                     path.display()
-                );
+                ));
             }
             let result = (|| {
                 let stream = UnixStream::connect(path).map_err(|error| error.to_string())?;
@@ -43,7 +43,10 @@ impl IpcClient {
                 Ok(client) => return Ok(client),
                 Err(error) => {
                     if verbose {
-                        eprintln!("xournal-rpc: IPC socket {} failed: {error}", path.display());
+                        crate::terminal::diagnostic(format_args!(
+                            "xournal-rpc: IPC socket {} failed: {error}",
+                            path.display()
+                        ));
                     }
                     errors.push(format!("{}: {error}", path.display()));
                 }

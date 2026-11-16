@@ -7,12 +7,14 @@ use crate::Status;
 pub struct Presence {
     client: Option<IpcClient>,
     config: Config,
+    last_error: Option<String>,
 }
 
 impl Presence {
     pub fn new(config: &Config) -> Self {
         Self {
             client: None,
+            last_error: None,
             config: config.clone(),
         }
     }
@@ -39,14 +41,20 @@ impl Presence {
         match client.set_activity(serde_json::to_value(activity).expect("activity is serializable"))
         {
             Ok(()) => {
+                self.last_error = None;
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: presence update acknowledged by Discord");
+                    crate::terminal::diagnostic(format_args!(
+                        "xournal-rpc: presence update acknowledged by Discord"
+                    ));
                 }
                 true
             }
             Err(error) => {
+                self.last_error = Some(error.to_string());
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: failed to update presence: {error}");
+                    crate::terminal::diagnostic(format_args!(
+                        "xournal-rpc: failed to update presence: {error}"
+                    ));
                 }
                 self.client = None;
                 false
@@ -54,15 +62,23 @@ impl Presence {
         }
     }
 
+    pub fn last_error(&self) -> Option<&str> {
+        self.last_error.as_deref()
+    }
+
     pub fn clear(&mut self) {
         if let Some(client) = self.client.as_mut() {
             if let Err(error) = client.clear_activity() {
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: failed to clear presence: {error}");
+                    crate::terminal::warning(format_args!(
+                        "xournal-rpc: failed to clear presence: {error}"
+                    ));
                 }
                 self.client = None;
             } else if self.config.verbose {
-                eprintln!("xournal-rpc: activity clear acknowledged by Discord");
+                crate::terminal::diagnostic(format_args!(
+                    "xournal-rpc: activity clear acknowledged by Discord"
+                ));
             }
         }
     }
@@ -75,21 +91,24 @@ impl Presence {
 
     fn connect(&mut self) -> Option<IpcClient> {
         if self.config.verbose {
-            eprintln!(
+            crate::terminal::diagnostic(format_args!(
                 "xournal-rpc: connecting to Discord IPC (client ID {})",
                 self.config.client_id
-            );
+            ));
         }
         match IpcClient::connect(&self.config.client_id, self.config.verbose) {
             Ok(client) => {
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: connected to Discord");
+                    crate::terminal::diagnostic(format_args!("xournal-rpc: connected to Discord"));
                 }
                 Some(client)
             }
             Err(error) => {
+                self.last_error = Some(error.to_string());
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: Discord connection failed: {error}");
+                    crate::terminal::diagnostic(format_args!(
+                        "xournal-rpc: Discord connection failed: {error}"
+                    ));
                 }
                 None
             }

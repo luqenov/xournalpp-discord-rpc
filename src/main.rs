@@ -2,6 +2,7 @@ mod config;
 mod discord;
 mod ipc;
 mod process;
+mod terminal;
 mod window;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,7 +28,7 @@ fn main() {
     let mut config = match Config::from_args(args.clone()) {
         Ok(config) => config,
         Err(error) => {
-            eprintln!("xournal-rpc: {error}");
+            crate::terminal::diagnostic(format_args!("xournal-rpc: {error}"));
             std::process::exit(2);
         }
     };
@@ -49,29 +50,30 @@ fn main() {
                 Ok(())
             });
         if let Err(error) = result {
-            eprintln!("xournal-rpc: {error}");
+            crate::terminal::diagnostic(format_args!("xournal-rpc: {error}"));
             std::process::exit(1);
         }
         return;
     }
     if let Err(error) = config.validate() {
-        eprintln!("xournal-rpc: {error}");
+        crate::terminal::diagnostic(format_args!("xournal-rpc: {error}"));
         std::process::exit(1);
     }
 
+    let terminal = terminal::Terminal::new(!config.dry_run);
     if config.verbose {
-        eprintln!(
+        crate::terminal::diagnostic(format_args!(
             "xournal-rpc: starting version {} (pid {}), interval {}s",
             env!("CARGO_PKG_VERSION"),
             std::process::id(),
             config.interval
-        );
+        ));
         if let Some(path) = config::config_file_path() {
-            eprintln!(
+            crate::terminal::diagnostic(format_args!(
                 "xournal-rpc: configuration path: {} (exists: {})",
                 path.display(),
                 path.exists()
-            );
+            ));
         }
     }
     let mut detector = WindowDetector::new(config.verbose);
@@ -85,7 +87,9 @@ fn main() {
     let running = Arc::new(AtomicBool::new(true));
     let signal = running.clone();
     if let Err(error) = ctrlc::set_handler(move || signal.store(false, Ordering::SeqCst)) {
-        eprintln!("xournal-rpc: failed to install signal handler: {error}");
+        crate::terminal::warning(format_args!(
+            "xournal-rpc: failed to install signal handler: {error}"
+        ));
     }
 
     let mut presence = Presence::new(&config);
@@ -99,19 +103,33 @@ fn main() {
             detector.set_verbose(config.verbose);
             backoff.reset();
         }
+        terminal.set("Detecting Xournal++…");
         let status = detect(&config, &mut detector);
+        if !status.running {
+            terminal.set("Waiting for Xournal++ to open");
+        } else if !should_publish(&status, &config) {
+            terminal.set("Paused · waiting for Xournal++ focus (--always to show in background)");
+        }
         if config.verbose {
-            eprintln!("xournal-rpc: detection: running={}, focused={}, window_pid={:?}, started={:?}, document={:?}", status.running, status.focused, status.pid, status.started, status.document);
+            crate::terminal::diagnostic(format_args!("xournal-rpc: detection: running={}, focused={}, window_pid={:?}, started={:?}, document={:?}", status.running, status.focused, status.pid, status.started, status.document));
             if !status.running {
-                eprintln!("xournal-rpc: waiting for Xournal++ to open");
+                crate::terminal::diagnostic(format_args!(
+                    "xournal-rpc: waiting for Xournal++ to open"
+                ));
             } else if !should_publish(&status, &config) {
-                eprintln!("xournal-rpc: activity hidden: waiting for Xournal++ focus (--always disables this)");
+                crate::terminal::diagnostic(format_args!("xournal-rpc: activity hidden: waiting for Xournal++ focus (--always disables this)"));
             }
         }
 
         if should_publish(&status, &config) {
+            terminal.set("Updating Discord activity…");
             if presence.set(&status) {
                 active = true;
+                let document = status.document.as_deref().unwrap_or("Xournal++");
+                terminal.set(format!(
+                    "RPC active · {document} · checking every {}s",
+                    config.interval
+                ));
                 backoff.reset();
                 if config.once {
                     break;
@@ -120,11 +138,24 @@ fn main() {
             } else {
                 active = false;
                 if config.once {
+                    terminal::warning(format_args!(
+                        "xournal-rpc: {}",
+                        presence.last_error().unwrap_or("Discord update failed")
+                    ));
+                    drop(terminal);
                     std::process::exit(1);
                 }
                 let delay = backoff.next();
+                terminal.set(format!(
+                    "Retrying in {}s · {}",
+                    delay.as_secs(),
+                    presence.last_error().unwrap_or("Discord unavailable")
+                ));
                 if config.verbose {
-                    eprintln!("xournal-rpc: retrying in {}s", delay.as_secs());
+                    crate::terminal::diagnostic(format_args!(
+                        "xournal-rpc: retrying in {}s",
+                        delay.as_secs()
+                    ));
                 }
                 sleep_interruptible(delay, &running);
             }
@@ -140,12 +171,13 @@ fn main() {
         }
     }
 
+    terminal.set("Clearing Discord activity…");
     if !config.once {
         presence.clear();
     }
     presence.close();
     if config.verbose {
-        eprintln!("xournal-rpc: stopped");
+        crate::terminal::diagnostic(format_args!("xournal-rpc: stopped"));
     }
 }
 
@@ -187,13 +219,13 @@ fn reload_config(config: &mut Config, args: &[String], last_error: &mut Option<S
             }
             *config = next;
             if config.verbose {
-                eprintln!("xournal-rpc: configuration reloaded");
+                crate::terminal::diagnostic(format_args!("xournal-rpc: configuration reloaded"));
             }
             true
         }
         Err(error) => {
             if last_error.as_ref() != Some(&error) {
-                eprintln!("xournal-rpc: configuration reload failed; keeping last valid settings: {error}");
+                crate::terminal::warning(format_args!("xournal-rpc: configuration reload failed; keeping last valid settings: {error}"));
                 *last_error = Some(error);
             }
             false

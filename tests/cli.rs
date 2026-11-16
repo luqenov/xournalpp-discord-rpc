@@ -26,7 +26,7 @@ impl Fixture {
         )
         .unwrap();
         fs::set_permissions(path.join("bin/niri"), fs::Permissions::from_mode(0o755)).unwrap();
-        fs::copy("/bin/sleep", path.join("bin/xournalpp")).unwrap();
+        std::os::unix::fs::symlink("/bin/sleep", path.join("bin/xournalpp")).unwrap();
         let process = Running(
             Command::new(path.join("bin/xournalpp"))
                 .arg("60")
@@ -371,4 +371,64 @@ fn ipc_reports_rejection_instead_of_success_and_handles_ping() {
     assert!(!output.0.success());
     assert!(output.1.contains("test rejection"));
     assert!(!output.1.contains("presence update acknowledged"));
+}
+
+#[test]
+fn interactive_status_animates_without_repeating_diagnostic_logs() {
+    use std::fs::File;
+    use std::os::fd::FromRawFd;
+
+    let fixture = Fixture::new();
+    fixture.config("interval = 2\nonly_when_focused = true\nverbose = true");
+    fixture.focus(false);
+    let mut master = -1;
+    let mut slave = -1;
+    assert_eq!(
+        unsafe {
+            libc::openpty(
+                &mut master,
+                &mut slave,
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        },
+        0
+    );
+    for descriptor in [master, slave] {
+        assert_ne!(
+            unsafe { libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) },
+            -1
+        );
+    }
+    let mut master = unsafe { File::from_raw_fd(master) };
+    let slave = unsafe { File::from_raw_fd(slave) };
+    let mut child = Running(
+        fixture
+            .command()
+            .env("TERM", "xterm")
+            .stderr(Stdio::from(slave))
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let reader = std::thread::spawn(move || {
+        let mut text = String::new();
+        // NOTE: Linux PTYs return EIO after the final slave descriptor closes.
+        let _ = master.read_to_string(&mut text);
+        text
+    });
+    std::thread::sleep(Duration::from_millis(2300));
+    unsafe {
+        libc::kill(child.0.id() as i32, libc::SIGTERM);
+    }
+    assert!(child.0.wait().unwrap().success());
+    let text = reader.join().unwrap();
+    assert!(text.contains("⠋"), "{text}");
+    assert!(text.contains("⠙"), "{text}");
+    assert!(text.contains("Paused"), "{text}");
+    assert!(text.contains("✓ Stopped"), "{text}");
+    assert_eq!(text.matches("Xournal++ · Discord RPC").count(), 1);
+    assert!(!text.contains("detection: running="));
+    assert!(!text.contains("detecting Xournal++ window"));
 }
