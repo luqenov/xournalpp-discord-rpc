@@ -250,6 +250,13 @@ fn live_reload_keeps_valid_settings_and_tracks_focus() {
     assert_eq!(activity(&mut stream)["details"], "updated message");
     fixture.config(&config("recovered message"));
     assert_eq!(activity(&mut stream)["details"], "recovered message");
+    fixture.config("interval = 2\nshow_message = false\nonly_when_focused = true");
+    let hidden = activity(&mut stream);
+    assert!(hidden.get("details").is_none());
+    assert_eq!(hidden["state"], "notes.pdf");
+    assert!(hidden.get("timestamps").is_some());
+    fixture.config(&config("recovered message"));
+    assert_eq!(activity(&mut stream)["details"], "recovered message");
     fixture.focus(false);
     assert!(activity(&mut stream).is_null());
     fixture.focus(true);
@@ -278,6 +285,39 @@ fn send(stream: &mut UnixStream, opcode: u32, payload: &Value) {
         .write_all(&(body.len() as u32).to_le_bytes())
         .unwrap();
     stream.write_all(&body).unwrap();
+}
+
+#[test]
+fn hidden_message_preserves_other_fields_and_precedence() {
+    let fixture = Fixture::new();
+    fixture.config("show_message = false\nmessage = ''");
+    let (_, payload) = preview(fixture.run(&["--dry-run"]));
+    assert!(payload.get("details").is_none());
+    assert_eq!(payload["state"], "notes.pdf");
+    assert!(payload.get("timestamps").is_some());
+    assert!(payload.get("buttons").is_some());
+    let output = fixture
+        .command()
+        .env("XOURNAL_RPC_SHOW_MESSAGE", "true")
+        .args(["--dry-run", "--message", "Visible again"])
+        .output()
+        .unwrap();
+    assert_eq!(preview(output).1["details"], "Visible again");
+    let output = fixture
+        .command()
+        .env("XOURNAL_RPC_SHOW_MESSAGE", "true")
+        .args(["--dry-run", "--no-message"])
+        .output()
+        .unwrap();
+    assert!(preview(output).1.get("details").is_none());
+    assert!(!fixture
+        .run(&["--dry-run", "--show-message"])
+        .status
+        .success());
+    assert_eq!(
+        preview(fixture.run(&["--dry-run", "--show-message", "--message", "hello"])).1["details"],
+        "hello"
+    );
 }
 
 #[test]

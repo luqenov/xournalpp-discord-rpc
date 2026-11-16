@@ -10,6 +10,8 @@ pub const MIN_INTERVAL: u64 = 2;
 
 pub const CONFIG_TEMPLATE: &str = r#"# Message shown in Discord (2-128 characters).
 message = "Studying"
+# Include the message in the activity; disable to show only other enabled fields.
+show_message = true
 # Seconds between updates. Changes to this file apply at the next update.
 interval = 15
 # Share the current document name.
@@ -30,6 +32,7 @@ verbose = false
 pub struct Config {
     pub client_id: String,
     pub message: String,
+    pub show_message: bool,
     pub interval: u64,
     pub show_document: bool,
     pub show_codeberg: bool,
@@ -48,6 +51,7 @@ pub struct Config {
 struct FileConfig {
     client_id: Option<String>,
     message: Option<String>,
+    show_message: Option<bool>,
     interval: Option<u64>,
     show_document: Option<bool>,
     show_codeberg: Option<bool>,
@@ -61,6 +65,7 @@ impl Default for Config {
         Self {
             client_id: DEFAULT_CLIENT_ID.to_string(),
             message: "Studying".to_string(),
+            show_message: true,
             interval: DEFAULT_INTERVAL,
             show_document: true,
             show_codeberg: true,
@@ -104,6 +109,8 @@ impl Config {
                 "--once" => config.once = true,
                 "--dry-run" => config.dry_run = true,
                 "--init-config" => config.init_config = true,
+                "--no-message" => config.show_message = false,
+                "--show-message" => config.show_message = true,
                 "--no-document" => config.show_document = false,
                 "--document" => config.show_document = true,
                 "--no-codeberg" => config.show_codeberg = false,
@@ -150,6 +157,7 @@ impl Config {
         for (key, variable) in [
             ("client_id", "XOURNAL_RPC_CLIENT_ID"),
             ("message", "XOURNAL_RPC_MESSAGE"),
+            ("show_message", "XOURNAL_RPC_SHOW_MESSAGE"),
             ("interval", "XOURNAL_RPC_INTERVAL"),
             ("show_document", "XOURNAL_RPC_SHOW_DOCUMENT"),
             ("show_codeberg", "XOURNAL_RPC_SHOW_CODEBERG"),
@@ -184,6 +192,7 @@ impl Config {
         apply!(
             client_id,
             message,
+            show_message,
             interval,
             show_document,
             show_codeberg,
@@ -200,6 +209,7 @@ impl Config {
             "client_id" => self.client_id = value.trim().to_string(),
             "message" => self.message = value.to_string(),
             "interval" => self.interval = parse_interval(value)?,
+            "show_message" => self.show_message = boolean()?,
             "show_document" => self.show_document = boolean()?,
             "show_codeberg" => self.show_codeberg = boolean()?,
             "show_timer" => self.show_timer = boolean()?,
@@ -223,8 +233,11 @@ impl Config {
                 self.interval, MIN_INTERVAL
             ));
         }
-        if !(2..=128).contains(&self.message.chars().count()) || self.message.trim().is_empty() {
-            return Err("message must contain 2-128 characters and cannot be blank".to_string());
+        if self.show_message
+            && (!(2..=128).contains(&self.message.chars().count())
+                || self.message.trim().is_empty())
+        {
+            return Err("message must contain 2-128 characters and cannot be blank; use --no-message or show_message = false to hide it".to_string());
         }
         Ok(())
     }
@@ -294,6 +307,8 @@ pub fn help() -> &'static str {
         "      --dry-run           Preview status and sharing settings without Discord\n",
         "      --init-config       Create a commented config.toml without overwriting\n",
         "      --message <TEXT>    Activity message [default: Studying]\n",
+        "      --no-message        Hide the activity message\n",
+        "      --show-message      Show the configured activity message [default]\n",
         "      --no-document       Do not share the document name\n",
         "      --document          Share the document name [default]\n",
         "      --no-codeberg       Hide the Codeberg button\n",

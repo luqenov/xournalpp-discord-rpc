@@ -213,6 +213,14 @@ fn print_status(status: &Status, config: &Config) {
         }
     );
     println!(
+        "message: {}",
+        if config.show_message {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
+    println!(
         "document sharing: {}",
         if config.show_document {
             "enabled"

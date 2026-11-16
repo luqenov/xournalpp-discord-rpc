@@ -5,6 +5,7 @@ xournal-rpc --help
 xournal-rpc --init-config
 xournal-rpc --dry-run
 xournal-rpc --message "Reviewing mathematics" --no-timer
+xournal-rpc --no-message
 xournal-rpc --no-document --no-codeberg
 xournal-rpc --only-when-focused
 ```
@@ -25,6 +26,7 @@ overwrites an existing file. The path is `$XDG_CONFIG_HOME/xournal-rpc/config.to
 
 ```toml
 message = "Reviewing mathematics"
+show_message = true
 interval = 15
 show_document = true
 show_codeberg = false
@@ -34,9 +36,12 @@ verbose = false
 # client_id = "YOUR_DISCORD_APPLICATION_ID"
 ```
 
-The defaults are `message = "Studying"`, `interval = 15`, all three `show_*`
-settings enabled, and `only_when_focused` and `verbose` disabled. Messages must
-contain 2-128 characters and cannot be blank. The minimum interval is 2 seconds.
+The defaults are `message = "Studying"`, `interval = 15`, all `show_*`
+settings enabled, and `only_when_focused` and `verbose` disabled. Visible messages must
+contain 2-128 characters and cannot be blank. Use `show_message = false` or
+`--no-message` to omit the message while retaining the document, timer and button
+according to their own settings. The configured text is preserved; restore it with
+`show_message = true` or `--show-message`. The minimum interval is 2 seconds.
 Use TOML booleans `true` or `false` and quote strings, including `client_id`.
 Invalid syntax, unknown settings and incorrect value types report an error.
 If you used the old extensionless `config`, rename it to `config.toml` and quote
@@ -55,6 +60,7 @@ changing a variable in another shell does not affect an already running instance
 
 | Config key | Environment variable | CLI override |
 | --- | --- | --- |
+| `show_message` | `XOURNAL_RPC_SHOW_MESSAGE` | `--show-message` / `--no-message` |
 | `message` | `XOURNAL_RPC_MESSAGE` | `--message "text"` |
 | `interval` | `XOURNAL_RPC_INTERVAL` | `--interval 15` |
 | `show_document` | `XOURNAL_RPC_SHOW_DOCUMENT` | `--document` / `--no-document` |
@@ -88,6 +94,8 @@ or `--no-timer`.
   common Flatpak/Snap paths; unavailable sockets do not block other candidates.
   If the desktop client runs in a sandbox, ensure the socket is accessible from
   the environment running `xournal-rpc`.
+- Quoted messages: use `--message "Ficando doido"`; without quotes the shell passes
+  two arguments. To hide the text, use `--no-message` instead of a blank message.
 - No activity: enable activity sharing in your Discord client and check
   `xournal-rpc --verbose` for IPC connection failures. If background hiding is
   enabled, focus a Xournal++ window or use `--always`.

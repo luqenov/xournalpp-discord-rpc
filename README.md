@@ -12,7 +12,7 @@ Discord Rich Presence for Xournal++ on Linux. Shows a customizable message (defa
 
 ## Features
 
-- Custom activity message with the active document name
+- Optional custom activity message (`--no-message` hides it) with the active document name
 - Optional session timer based on when Xournal++ started
 - Supports niri, Hyprland, Sway/i3 and X11
 - Prefers the focused Xournal++ window when several are open

@@ -98,13 +98,14 @@ impl Presence {
 }
 
 pub fn build_activity<'a>(config: &Config, status: &'a Status) -> activity::Activity<'a> {
-    let mut activity = activity::Activity::new()
-        .details(config.message.clone())
-        .assets(
-            activity::Assets::new()
-                .large_image("xournalpp")
-                .large_text("Xournal++"),
-        );
+    let mut activity = activity::Activity::new().assets(
+        activity::Assets::new()
+            .large_image("xournalpp")
+            .large_text("Xournal++"),
+    );
+    if config.show_message {
+        activity = activity.details(config.message.clone());
+    }
     if config.show_codeberg {
         activity = activity.buttons(vec![activity::Button::new(
             "Codeberg",
