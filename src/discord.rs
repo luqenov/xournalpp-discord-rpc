@@ -1,10 +1,11 @@
-use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
+use crate::ipc::IpcClient;
+use discord_rich_presence::activity;
 
 use crate::config::Config;
 use crate::Status;
 
 pub struct Presence {
-    client: Option<DiscordIpcClient>,
+    client: Option<IpcClient>,
     config: Config,
 }
 
@@ -35,10 +36,11 @@ impl Presence {
         let activity = build_activity(&self.config, status);
 
         let client = self.client.as_mut().expect("client was connected");
-        match client.set_activity(activity) {
+        match client.set_activity(serde_json::to_value(activity).expect("activity is serializable"))
+        {
             Ok(()) => {
                 if self.config.verbose {
-                    eprintln!("xournal-rpc: presence updated");
+                    eprintln!("xournal-rpc: presence update acknowledged by Discord");
                 }
                 true
             }
@@ -59,6 +61,8 @@ impl Presence {
                     eprintln!("xournal-rpc: failed to clear presence: {error}");
                 }
                 self.client = None;
+            } else if self.config.verbose {
+                eprintln!("xournal-rpc: activity clear acknowledged by Discord");
             }
         }
     }
@@ -69,10 +73,15 @@ impl Presence {
         }
     }
 
-    fn connect(&mut self) -> Option<DiscordIpcClient> {
-        let mut client = DiscordIpcClient::new(&self.config.client_id);
-        match client.connect() {
-            Ok(()) => {
+    fn connect(&mut self) -> Option<IpcClient> {
+        if self.config.verbose {
+            eprintln!(
+                "xournal-rpc: connecting to Discord IPC (client ID {})",
+                self.config.client_id
+            );
+        }
+        match IpcClient::connect(&self.config.client_id, self.config.verbose) {
+            Ok(client) => {
                 if self.config.verbose {
                     eprintln!("xournal-rpc: connected to Discord");
                 }

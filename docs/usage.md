@@ -11,7 +11,11 @@ xournal-rpc --only-when-focused
 
 `--dry-run` previews the message, sharing settings, focus state and activity payload
 without connecting to Discord. It also reports whether the activity would be
-visible. `--verbose` prints backend and connection errors.
+visible. `--verbose` reports startup, configuration path, window detection, reasons for
+hiding activity, IPC socket attempts and server acknowledgements or rejections.
+Activity updates are confirmed only after the client acknowledges `SET_ACTIVITY`.
+Each IPC response has a five-second timeout; failed connections are retried with
+backoff. An acknowledgement confirms local client acceptance, not profile visibility.
 
 ## Configuration
 
@@ -77,6 +81,13 @@ or `--no-timer`.
 
 ## Troubleshooting
 
+- IPC failures: the client must expose a `discord-ipc-*` Unix socket in the same
+  user session (Equibop uses the same IPC protocol). WebSocket port 6463 alone is
+  insufficient. `--verbose` prints the socket being tried and handshake errors.
+  Discovery checks `XDG_RUNTIME_DIR`, temporary directories, `/run/user/<uid>` and
+  common Flatpak/Snap paths; unavailable sockets do not block other candidates.
+  If the desktop client runs in a sandbox, ensure the socket is accessible from
+  the environment running `xournal-rpc`.
 - No activity: enable activity sharing in your Discord client and check
   `xournal-rpc --verbose` for IPC connection failures. If background hiding is
   enabled, focus a Xournal++ window or use `--always`.

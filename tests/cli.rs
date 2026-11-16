@@ -204,15 +204,22 @@ fn connect(listener: &UnixListener) -> UnixStream {
         .set_read_timeout(Some(Duration::from_secs(15)))
         .unwrap();
     assert_eq!(receive(&mut stream).0, 0);
-    stream.write_all(&1u32.to_le_bytes()).unwrap();
-    stream.write_all(&2u32.to_le_bytes()).unwrap();
-    stream.write_all(b"{}").unwrap();
+    send(
+        &mut stream,
+        1,
+        &json!({"cmd":"DISPATCH", "evt":"READY", "data":{}}),
+    );
     stream
 }
 fn activity(stream: &mut UnixStream) -> Value {
     let (opcode, payload) = receive(stream);
     assert_eq!(opcode, 1);
     assert_eq!(payload["cmd"], "SET_ACTIVITY");
+    send(
+        stream,
+        1,
+        &json!({"cmd":"SET_ACTIVITY", "nonce":payload["nonce"], "data":{}}),
+    );
     payload["args"]["activity"].clone()
 }
 
@@ -223,7 +230,9 @@ fn live_reload_keeps_valid_settings_and_tracks_focus() {
         format!("interval = 2\nmessage = '{message}'\nshow_timer = false\nonly_when_focused = true")
     };
     fixture.config(&config("first message"));
-    let listener = UnixListener::bind(fixture.0.join("discord-ipc-0")).unwrap();
+    // A stale first candidate must not prevent connecting to a working socket.
+    fs::write(fixture.0.join("discord-ipc-0"), "stale socket").unwrap();
+    let listener = UnixListener::bind(fixture.0.join("discord-ipc-1")).unwrap();
     listener.set_nonblocking(true).unwrap();
     let mut child = Running(
         fixture
@@ -260,4 +269,66 @@ fn live_reload_keeps_valid_settings_and_tracks_focus() {
     }
     assert!(activity(&mut stream).is_null());
     assert!(child.0.wait().unwrap().success());
+}
+
+fn send(stream: &mut UnixStream, opcode: u32, payload: &Value) {
+    let body = serde_json::to_vec(payload).unwrap();
+    stream.write_all(&opcode.to_le_bytes()).unwrap();
+    stream
+        .write_all(&(body.len() as u32).to_le_bytes())
+        .unwrap();
+    stream.write_all(&body).unwrap();
+}
+
+#[test]
+fn verbose_explains_hidden_activity_without_connecting() {
+    let fixture = Fixture::new();
+    fixture.config("only_when_focused = true");
+    fixture.focus(false);
+    let output = fixture.run(&["--once", "--verbose"]);
+    assert!(output.status.success());
+    let log = String::from_utf8_lossy(&output.stderr);
+    assert!(log.contains("starting version"));
+    assert!(log.contains("configuration path:"));
+    assert!(log.contains("focused=false"));
+    assert!(log.contains("waiting for Xournal++ focus"));
+    assert!(!log.contains("connecting to Discord"));
+}
+
+#[test]
+fn ipc_reports_rejection_instead_of_success_and_handles_ping() {
+    let fixture = Fixture::new();
+    let listener = UnixListener::bind(fixture.0.join("discord-ipc-0")).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let mut child = Running(
+        fixture
+            .command()
+            .args(["--once", "--verbose"])
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let mut stream = connect(&listener);
+    let (_, payload) = receive(&mut stream);
+    send(&mut stream, 3, &json!({"ping":42}));
+    assert_eq!(receive(&mut stream), (4, json!({"ping":42})));
+    send(
+        &mut stream,
+        1,
+        &json!({"cmd":"SET_ACTIVITY", "nonce":payload["nonce"],
+        "evt":"ERROR", "data":{"code":4000,"message":"test rejection"}}),
+    );
+    let status = child.0.wait().unwrap();
+    let mut log = String::new();
+    child
+        .0
+        .stderr
+        .take()
+        .unwrap()
+        .read_to_string(&mut log)
+        .unwrap();
+    let output = (status, log);
+    assert!(!output.0.success());
+    assert!(output.1.contains("test rejection"));
+    assert!(!output.1.contains("presence update acknowledged"));
 }

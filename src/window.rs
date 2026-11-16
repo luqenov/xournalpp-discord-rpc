@@ -68,6 +68,12 @@ impl WindowDetector {
     }
 
     pub fn focused_xournal(&mut self) -> Option<WindowInfo> {
+        if self.verbose {
+            eprintln!(
+                "xournal-rpc: detecting Xournal++ window (backend: {:?})",
+                self.backend
+            );
+        }
         if let Some(backend) = self.backend {
             match backend.windows() {
                 Ok(windows) => return pick(windows),

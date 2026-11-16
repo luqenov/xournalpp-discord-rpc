@@ -1,5 +1,6 @@
 mod config;
 mod discord;
+mod ipc;
 mod process;
 mod window;
 
@@ -58,6 +59,21 @@ fn main() {
         std::process::exit(1);
     }
 
+    if config.verbose {
+        eprintln!(
+            "xournal-rpc: starting version {} (pid {}), interval {}s",
+            env!("CARGO_PKG_VERSION"),
+            std::process::id(),
+            config.interval
+        );
+        if let Some(path) = config::config_file_path() {
+            eprintln!(
+                "xournal-rpc: configuration path: {} (exists: {})",
+                path.display(),
+                path.exists()
+            );
+        }
+    }
     let mut detector = WindowDetector::new(config.verbose);
 
     if config.dry_run {
@@ -84,6 +100,14 @@ fn main() {
             backoff.reset();
         }
         let status = detect(&config, &mut detector);
+        if config.verbose {
+            eprintln!("xournal-rpc: detection: running={}, focused={}, window_pid={:?}, started={:?}, document={:?}", status.running, status.focused, status.pid, status.started, status.document);
+            if !status.running {
+                eprintln!("xournal-rpc: waiting for Xournal++ to open");
+            } else if !should_publish(&status, &config) {
+                eprintln!("xournal-rpc: activity hidden: waiting for Xournal++ focus (--always disables this)");
+            }
+        }
 
         if should_publish(&status, &config) {
             if presence.set(&status) {
@@ -120,6 +144,9 @@ fn main() {
         presence.clear();
     }
     presence.close();
+    if config.verbose {
+        eprintln!("xournal-rpc: stopped");
+    }
 }
 
 fn detect(config: &Config, detector: &mut WindowDetector) -> Status {
