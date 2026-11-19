@@ -73,6 +73,12 @@ systemctl --user enable --now xournal-rpc
 nix run git+https://codeberg.org/luqenov/xournalpp-discord-rpc
 ```
 
+For a persistent installation, including use with the systemd service:
+
+```bash
+nix profile install git+https://codeberg.org/luqenov/xournalpp-discord-rpc
+```
+
 Or use the overlay:
 
 ```nix
@@ -83,16 +89,24 @@ Or use the overlay:
 
 ### systemd user service
 
-A unit file is available at [`packaging/xournal-rpc.service`](packaging/xournal-rpc.service). For a manual install:
+A unit file is available at [`packaging/xournal-rpc.service`](packaging/xournal-rpc.service).
+The Arch package installs it automatically. For other installation methods, run
+the following from a checkout of this repository after installing the binary:
 
 ```bash
-mkdir -p ~/.config/systemd/user
-cp packaging/xournal-rpc.service ~/.config/systemd/user/
+sh scripts/install-user-service.sh
 systemctl --user daemon-reload
 systemctl --user enable --now xournal-rpc
 ```
 
-If the binary is not at `/usr/bin/xournal-rpc`, update `ExecStart` first.
+The installer sets `ExecStart` to the absolute path returned by
+`command -v xournal-rpc`, covering `/usr/local/bin`, Cargo and Nix profile
+installations without depending on systemd's `PATH`. Ensure the installed binary's
+directory is in your shell's `PATH` first. `nix run` alone does not install a
+persistent executable for the service.
+
+If you move the binary or change installation methods, rerun the installer and
+`systemctl --user daemon-reload`, then `systemctl --user restart xournal-rpc`.
 
 ## Usage and troubleshooting
 

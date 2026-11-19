@@ -119,8 +119,12 @@ or `--no-timer`.
   values, use unquoted booleans, and check setting names. `--help`, `--version`
   and `--init-config` work even when the config is invalid.
 - User service failure: inspect `journalctl --user -u xournal-rpc` and verify the
-  unit's `ExecStart` matches the installed binary (`~/.cargo/bin/xournal-rpc` for
-  Cargo installs). Run `systemctl --user daemon-reload` after editing the unit.
+  unit's `ExecStart` matches the installed binary. From a repository checkout,
+  run `sh scripts/install-user-service.sh` to regenerate the unit using the
+  executable on your shell's `PATH`, then run `systemctl --user daemon-reload`
+  and `systemctl --user restart xournal-rpc`. This also fixes `203/EXEC` errors
+  caused by an outdated executable path. Cargo's default location is
+  `~/.cargo/bin/xournal-rpc`; prebuilt binaries use `/usr/local/bin/xournal-rpc`.
 - Missing compositor environment in systemd: import the relevant variables from
   your graphical session with `systemctl --user import-environment VARIABLE`.
 - Document privacy: use `--no-document` or `show_document = false` before sharing
